@@ -29,10 +29,8 @@ namespace LlmChatDesktop
             InputBox.Foreground = Brushes.White;
             InputBox.BorderBrush = new SolidColorBrush(Color.FromRgb(70, 70, 70));
 
-            // API anahtarını buraya ekle
-            // GROQ: https://console.groq.com/keys (ÜCRETSIZ!)
-            // CLAUDE: https://console.anthropic.com/settings/keys
-            var apiKey = ""; // Buraya API key'ini yapıştır
+            // API key artık environment variable'dan alınacak
+            var apiKey = Environment.GetEnvironmentVariable("GROQ_API_KEY") ?? "";
             var provider = ApiProvider.Groq; // Groq, Claude veya Mock seçebilirsin
 
             _llm = new LlmService(apiKey, provider);
@@ -56,13 +54,11 @@ namespace LlmChatDesktop
             var userText = InputBox.Text?.Trim();
             if (string.IsNullOrEmpty(userText)) return;
 
-            // Kullanıcı mesajını ekle
             _conversationHistory.Add(new ChatMessage { Role = "user", Content = userText });
             AddMessageToConversation("Sen", userText, Color.FromRgb(37, 99, 235));
             InputBox.Clear();
             SendBtn.IsEnabled = false;
 
-            // "Yazıyor..." göstergesi
             var typingIndicator = AddTypingIndicator();
 
             try
@@ -72,7 +68,6 @@ namespace LlmChatDesktop
                     (chunk) => UpdateTypingMessage(typingIndicator, chunk)
                 );
 
-                // Yazıyor göstergesini kaldır ve gerçek mesajı ekle
                 ConversationPanel.Children.Remove(typingIndicator);
                 _conversationHistory.Add(new ChatMessage { Role = "assistant", Content = response });
                 AddMessageToConversation("Asistan", response, Color.FromRgb(34, 197, 94));
@@ -110,13 +105,10 @@ namespace LlmChatDesktop
                 if (border.Child is StackPanel panel && panel.Children.Count > 1)
                 {
                     if (panel.Children[1] is TextBlock tb)
-                    {
                         tb.Text = text;
-                    }
                 }
                 else if (border.Child is StackPanel panel2 && panel2.Children.Count == 1)
                 {
-                    // İlk chunk geldiğinde TextBlock ekle
                     panel2.Children.Add(new TextBlock
                     {
                         Text = text,
@@ -252,7 +244,7 @@ namespace LlmChatDesktop
 
             var request = new
             {
-                model = "llama-3.3-70b-versatile", // Groq'un en iyi modeli
+                model = "llama-3.3-70b-versatile",
                 messages = messages,
                 max_tokens = 2048,
                 temperature = 0.7,
@@ -262,7 +254,6 @@ namespace LlmChatDesktop
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             var response = await _http!.PostAsync("chat/completions", content);
-
 
             if (!response.IsSuccessStatusCode)
             {
@@ -295,7 +286,7 @@ namespace LlmChatDesktop
                             {
                                 fullResponse.Append(chunk);
                                 onChunk?.Invoke(fullResponse.ToString());
-                                await Task.Delay(10); // Smooth animasyon
+                                await Task.Delay(10);
                             }
                         }
                     }
@@ -366,13 +357,8 @@ namespace LlmChatDesktop
         private async Task<string> GetMockResponseAsync(List<ChatMessage> history, Action<string> onChunk)
         {
             var response = "🤖 MOCK MODE: API key yok, demo modda çalışıyorum!\n\n" +
-                          "Gerçek AI kullanmak için:\n" +
-                          "1. Groq API key al (ÜCRETSİZ): https://console.groq.com/keys\n" +
-                          "2. Key'i MainWindow.cs'deki 'apiKey' değişkenine yapıştır\n" +
-                          "3. Uygulamayı yeniden başlat\n\n" +
                           $"Senin mesajın: {history.LastOrDefault()?.Content ?? "Boş"}";
 
-            // Kelime kelime yazdırma efekti
             var words = response.Split(' ');
             var accumulated = new StringBuilder();
 
